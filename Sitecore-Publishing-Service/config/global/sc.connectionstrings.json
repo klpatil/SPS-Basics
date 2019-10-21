@@ -1,0 +1,12 @@
+{
+  "Sitecore": {
+    "Publishing": {
+      "ConnectionStrings": {
+        "core": "Data Source=8BROTT2\\SQL2K16SP1;Initial Catalog=sc92_Core;User ID=sa;Password=XYZ;MultipleActiveResultSets=True;ConnectRetryCount=15;ConnectRetryInterval=1",
+        "master": "Data Source=8BROTT2\\SQL2K16SP1;Initial Catalog=sc92_Master;User ID=sa;Password=XYZ;MultipleActiveResultSets=True;ConnectRetryCount=15;ConnectRetryInterval=1",
+        "web": "Data Source=8BROTT2\\SQL2K16SP1;Initial Catalog=sc92_Web;User ID=sa;Password=XYZ;MultipleActiveResultSets=True;ConnectRetryCount=15;ConnectRetryInterval=1",
+        "web2": "Data Source=8BROTT2\\SQL2K16SP1;Initial Catalog=sc92_web_2;User ID=sa;Password=XYZ;MultipleActiveResultSets=True;ConnectRetryCount=15;ConnectRetryInterval=1"
+      }
+    }
+  }
+}

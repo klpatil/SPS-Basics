@@ -1,0 +1,397 @@
+<Settings>
+  <!--
+    The main configuration file for the Sitecore Publishing Service.
+    
+    ### IMPORTANT ###
+    Configuration elements can point to other configuration values using the following syntax:
+    
+    If we have a config of
+      <Settings>
+        <Publishing>
+          <ConnectionStrings>
+            <Master>user id=sa;password=password;data source=.\SQLEXPRESS;database=sitecore.Master;MultipleActiveResultSets=True;</Master>
+          </ConnectionStrings>
+        </Publishing>
+      </Settings>
+      
+    We can point another configuration element to the same value using
+      ${Sitecore:Publishing:ConnectionStrings:Master}
+    
+    NOTE: 
+      The path must be defined using ':' between each node name.
+      The full value must start with '${' and end with '}'    
+      
+    ### IMPORTANT ###
+      When registering a type you can configure the following values:
+        Type      (Required): The full type reference of the instance being registered
+        As        (Optional): The type the instance may be resolved as (defaults to Type if not provided)
+        LifeTime  (Optional): The lifetime of instance.  Can be Singleton or Transient. (defaults to Singleton)
+        Options   (Optional): If the type contains a constuctor that recieves IConfiguration, you can proivide
+                              addtional values here to match the resulting type of options for that type.
+  -->
+  <Sitecore>
+    <Publishing>
+
+      <!-- 
+      
+        INSTANCE NAME
+        
+        The Service instance can optionally be given a name.
+        
+        The name will be used to identify the Service Instance in API calls and in log messages.  The name is currently used to record which 
+        instance is active in the ActivationLock table, and will appear in log messages regarding the instance activation state.
+      
+        The config provided below, will yield the value from an environment variable, or via a runtime parameter.
+        
+        Alternatively, the name can be provided explicitly, in a patching config file..
+        <InstanceName>Publishing Service 1</InstanceName>
+        
+        If none is provided, a random Guid will be used as the name.  (This implementation can be override via the 'SerivceInformation' service if required).
+        
+      -->
+      <InstanceName>${SITECORE_InstanceName}</InstanceName>
+
+      <!--
+      
+        CONNECTION STRINGS
+        
+        The list of connections that may be used through the service.        
+        
+        Connection string must support Multiple Active Result Sets (MARS) by adding MultipleActiveResultSets=True to the connection string.
+        Also, to mitigate for transient connection errors, the ConnectRetryCount and ConnectRetryInterval should be configured
+        
+        e.g. To define another connection for Master add the following under the <ConnectionStrings> element
+        <Master>user id=sa;password=password;data source=.\SQLEXPRESS;database=sitecore.Master;MultipleActiveResultSets=True;ConnectRetryCount=15;ConnectRetryInterval=1</Master>
+        
+        ### IMPORTANT ###
+        The connections for the following databases must be provided by the user when installing
+          - Master
+          - Web
+          - Core      
+          
+      -->
+      <ConnectionStrings>
+        <!-- The Service connection is registered to map to the same connection string as the master database by default. -->
+        <Service>${Sitecore:Publishing:ConnectionStrings:Master}</Service>
+      </ConnectionStrings>
+
+      <!--
+        Settings for individual component services of the application
+      -->
+      <Services>
+
+        <!-- 
+        
+          CONNECTIONS
+          
+          The connections available to the stores. Each store can reference one or multiple connections by its name element. e.g. Master.
+          
+          For Ado.Net connections:
+          
+          - ConnectionString      : 
+          - DefaultCommandTimeout : The default timeout used when executing commands. This value will typically be overriden by the Connection Behaviour timeout 
+                                    used in each context, however this value will be used if no behaviour is configured for the context.
+          - Behaviours  : 
+          
+                Defines which connection behaviours are used for the connection for each Data Access Context. There are 2 main types of data access 
+                contexts currently defined:
+                  1. Api     : When the data is being processed to serve a request for a information from an out-of-process component.
+                  2. Backend : When data is being processed as part of a background operation (i.e. a publishing job).
+                  
+                See the 'Connection Behaviours' section below for more information on the behaviours.
+                
+                All connections are configured with the default behaviours.
+          
+        -->
+        <DefaultConnectionFactory>
+          <Options>
+            <Connections>
+              <Links>
+                <Type>Sitecore.Framework.Publishing.Data.AdoNet.SqlDatabaseConnection, Sitecore.Framework.Publishing.Data</Type>
+                <LifeTime>Transient</LifeTime>
+                <Options>
+                  <ConnectionString>${Sitecore:Publishing:ConnectionStrings:Core}</ConnectionString>
+                  <DefaultCommandTimeout>120</DefaultCommandTimeout>
+                  <Behaviours>
+                    <backend>sql-backend-default</backend>
+                    <api>sql-api-default</api>
+                  </Behaviours>
+                </Options>
+              </Links>
+              <Service>
+                <Type>Sitecore.Framework.Publishing.Data.AdoNet.SqlDatabaseConnection, Sitecore.Framework.Publishing.Data</Type>
+                <LifeTime>Transient</LifeTime>
+                <Options>
+                  <ConnectionString>${Sitecore:Publishing:ConnectionStrings:Service}</ConnectionString>
+                  <DefaultCommandTimeout>120</DefaultCommandTimeout>
+                  <Behaviours>
+                    <backend>sql-backend-default</backend>
+                    <api>sql-api-default</api>
+                  </Behaviours>
+                </Options>
+              </Service>
+              <Master>
+                <Type>Sitecore.Framework.Publishing.Data.AdoNet.SqlDatabaseConnection, Sitecore.Framework.Publishing.Data</Type>
+                <LifeTime>Transient</LifeTime>
+                <Options>
+                  <ConnectionString>${Sitecore:Publishing:ConnectionStrings:Master}</ConnectionString>
+                  <DefaultCommandTimeout>120</DefaultCommandTimeout>
+                  <Behaviours>
+                    <backend>sql-backend-default</backend>
+                    <api>sql-api-default</api>
+                  </Behaviours>
+                </Options>
+              </Master>
+              <Internet>
+                <!-- Should match the name of the publishing target configured in SC. -->
+                <Type>Sitecore.Framework.Publishing.Data.AdoNet.SqlDatabaseConnection, Sitecore.Framework.Publishing.Data</Type>
+                <LifeTime>Transient</LifeTime>
+                <Options>
+                  <ConnectionString>${Sitecore:Publishing:ConnectionStrings:Web}</ConnectionString>
+                  <DefaultCommandTimeout>120</DefaultCommandTimeout>
+                  <Behaviours>
+                    <backend>sql-backend-default</backend>
+                    <api>sql-api-default</api>
+                  </Behaviours>
+                </Options>
+              </Internet>
+			  <web2>
+                <!-- Should match the name of the publishing target configured in SC. -->
+                <Type>Sitecore.Framework.Publishing.Data.AdoNet.SqlDatabaseConnection, Sitecore.Framework.Publishing.Data</Type>
+                <LifeTime>Transient</LifeTime>
+                <Options>
+                  <ConnectionString>${Sitecore:Publishing:ConnectionStrings:web2}</ConnectionString>
+                  <DefaultCommandTimeout>120</DefaultCommandTimeout>
+                  <Behaviours>
+                    <backend>sql-backend-default</backend>
+                    <api>sql-api-default</api>
+                  </Behaviours>
+                </Options>
+              </web2>
+            </Connections>
+          </Options>
+        </DefaultConnectionFactory>
+
+        <!-- 
+        
+          CONNECTION BEHAVIOURS
+        
+          Connection Behaviours are typically designed to allow the application to be tollerant of transient errors in a cloud hosting scenario 
+          (i.e. SQL Azure), and avoiding failures during a SQL Always On auto failover event.
+          
+          When submitting a request to the database with ADO.NET connection, a Connection Behaviour is chosen, according to the connection being
+          used and the context in which the request is being made.  The context is what is called a Data Access Context, the two main types are 'api' 
+          and 'backend', depending on the type of work being performed in each part of the system.
+          
+          There are 3 Connection Behaviours provided out of the box:
+            - NoRetry            : A 'null' behaviour that does not provide any additional logic.
+            - ExponentialBackoff : See the documentation in config\azure\sc.publishing.sqlazure.xml
+            - FixedBackoff       : See the documentation in config\azure\sc.publishing.sqlazure.xml
+          
+          All take at least the following parameters:
+            - Name           : An optional display name that will appear in the logs for diagnostic purposes.
+            - CommandTimeout : An optional custom command timeout value in seconds, that will override the default timeout specified for the DatabaseConnection.
+          
+          The following default configuration specifies no retry behaviour with some reasonable timeout values for the different contexts.
+          
+        -->
+        <DbConnectionBehaviours>
+          <Options>
+            <Entries>
+              <!-- Used for all DatabaseConnections created in backend contexts (typically publishing jobs). -->
+              <sql-backend-default>
+                <Type>Sitecore.Framework.Publishing.Data.AdoNet.ConnectionRetryBehaviour, Sitecore.Framework.Publishing.Data</Type>
+                <Options>
+                  <Name>Default Backend No Retry behaviour</Name>
+                  <CommandTimeout>120</CommandTimeout>
+                  <Retryer>NoRetryer</Retryer>
+                </Options>
+              </sql-backend-default>
+
+              <!-- Used for all DatabaseConnections created in API contexts. -->
+              <sql-api-default>
+                <Type>Sitecore.Framework.Publishing.Data.AdoNet.ConnectionRetryBehaviour, Sitecore.Framework.Publishing.Data</Type>
+                <Options>
+                  <Name>Default Api No Retry behaviour</Name>
+                  <CommandTimeout>10</CommandTimeout>
+                  <Retryer>NoRetryer</Retryer>
+                </Options>
+              </sql-api-default>
+
+            </Entries>
+          </Options>
+        </DbConnectionBehaviours>
+
+
+
+        <!--
+        
+          STORES
+        
+          The StoreFactory handles the creation of connections used throughout the service.
+          Connections can be of the type:
+            Service: Only one connection can be defined to handle connections to the service database.
+            Sources: Connections to databases containing source information to publish to Targets.
+            Targets: Connections to databases containing destination tables for source data.
+            Custom: Custom connections used for other purposes.
+            
+          ConnectionName: Maps directly to connection(s) by its name as defined in DefaultConnectionFactory
+          FeaturesListName: Maps directly to a Feature Lists by its name as defined in StoreFeaturesLists
+          
+        -->
+        <StoreFactory>
+          <Options>
+            <Stores>
+              <Service>
+                <Type>Sitecore.Framework.Publishing.Data.ServiceStore, Sitecore.Framework.Publishing.Data</Type>
+                <ConnectionName>Service</ConnectionName>
+                <FeaturesListName>ServiceStoreFeatures</FeaturesListName>
+              </Service>
+              <Sources>
+                <Master>
+                  <Type>Sitecore.Framework.Publishing.Data.SourceStore, Sitecore.Framework.Publishing.Data</Type>
+                  <ConnectionNames>
+                    <master>Master</master>
+                  </ConnectionNames>
+                  <FeaturesListName>SourceStoreFeatures</FeaturesListName>
+                  <!-- The name of the Database entity in Sitecore. -->
+                  <ScDatabase>master</ScDatabase>
+                </Master>
+              </Sources>
+              <Targets>
+                <!--Additional targets can be configured here-->
+                <Internet>
+                  <Type>Sitecore.Framework.Publishing.Data.TargetStore, Sitecore.Framework.Publishing.Data</Type>
+                  <ConnectionName>Internet</ConnectionName>
+                  <FeaturesListName>TargetStoreFeatures</FeaturesListName>
+                  <!-- The id of the target item definition in Sitecore. -->
+                  <Id>8E080626-DDC3-4EF4-A1D1-F0BE4A200254</Id>
+                  <!-- The name of the Database entity in Sitecore. -->
+                  <ScDatabase>web</ScDatabase>
+                </Internet>
+				<web2>
+                  <Type>Sitecore.Framework.Publishing.Data.TargetStore, Sitecore.Framework.Publishing.Data</Type>
+                  <ConnectionName>web2</ConnectionName>
+                  <FeaturesListName>TargetStoreFeatures</FeaturesListName>
+                  <!-- The id of the target item definition in Sitecore. -->
+                  <Id>52CA48C4-1479-4596-AE7D-5B6E4A5DF307</Id>
+                  <!-- The name of the Database entity in Sitecore. -->
+                  <ScDatabase>web2</ScDatabase>
+                </web2>
+				
+              </Targets>
+              <ItemsRelationship>
+                <Type>Sitecore.Framework.Publishing.Data.ItemsRelationshipStore, Sitecore.Framework.Publishing.Data</Type>
+                <ConnectionName>Links</ConnectionName>
+                <FeaturesListName>ItemsRelationshipStoreFeatures</FeaturesListName>
+              </ItemsRelationship>
+              <!--<Custom>
+                <MyCustomStore>
+                  <Type>Sitecore.Framework.Publishing.Data.CustomStore, Sitecore.Framework.Publishing.Data</Type>
+                  <ConnectionName>MyCustomConnectionName</ConnectionName>
+                  <FeaturesListName>MyCustomStoreFeatures</FeaturesListName>
+                </MyCustomStore>
+              </Custom>-->
+            </Stores>
+          </Options>
+        </StoreFactory>
+
+        <!-- 
+        
+          STORE FEATURES
+        
+          List of features available to the stores. Each store can reference a feature list by its name element. e.g. SourceStoreFeatures.
+          
+        -->
+        <StoreFeaturesLists>
+          <Options>
+            <FeatureLists>
+              <!--Source Store Features-->
+              <SourceStoreFeatures>
+                <ItemReadRepositoryFeature>
+                  <Type>Sitecore.Framework.Publishing.Data.CompositeItemReadRepository, Sitecore.Framework.Publishing.Data</Type>
+                </ItemReadRepositoryFeature>
+                <TestableContentRepositoryFeature>
+                  <Type>Sitecore.Framework.Publishing.Data.CompositeTestableContentRepository, Sitecore.Framework.Publishing.Data</Type>
+                </TestableContentRepositoryFeature>
+                <WorkflowStateRepositoryFeature>
+                  <Type>Sitecore.Framework.Publishing.Data.CompositeWorkflowStateRepository, Sitecore.Framework.Publishing.Data</Type>
+                </WorkflowStateRepositoryFeature>
+                <EventQueueRepositoryFeature>
+                  <Type>Sitecore.Framework.Publishing.Data.CompositeEventQueueRepository, Sitecore.Framework.Publishing.Data</Type>
+                  <options>
+                    <ConnectionName>master</ConnectionName>
+                  </options>
+                </EventQueueRepositoryFeature>
+                <SourceIndexFeature>
+                  <Type>Sitecore.Framework.Publishing.ItemIndex.SourceIndexWrapper, Sitecore.Framework.Publishing</Type>
+                </SourceIndexFeature>
+              </SourceStoreFeatures>
+
+              <!--Service Store Features-->
+              <ServiceStoreFeatures>
+                <ManifestRepositoryFeature>
+                  <Type>Sitecore.Framework.Publishing.Manifest.ManifestRepository, Sitecore.Framework.Publishing</Type>
+                </ManifestRepositoryFeature>
+                <PublisherOperationRepositoryFeature>
+                  <Type>Sitecore.Framework.Publishing.PublisherOperations.PublisherOperationRepository, Sitecore.Framework.Publishing</Type>
+                </PublisherOperationRepositoryFeature>
+                <PublishJobQueueRepositoryFeature>
+                  <Type>Sitecore.Framework.Publishing.PublishJobQueue.PublishJobQueueRepository, Sitecore.Framework.Publishing</Type>
+                </PublishJobQueueRepositoryFeature>
+                <TargetSyncStateRepositoryFeature>
+                  <Type>Sitecore.Framework.Publishing.TargetSyncState.TargetSyncStateRepository, Sitecore.Framework.Publishing</Type>
+                </TargetSyncStateRepositoryFeature>
+                <ActivationLockRepositoryFeature>
+                  <Type>Sitecore.Framework.Publishing.InstanceActivation.ActivationLockRepository, Sitecore.Framework.Publishing</Type>
+                </ActivationLockRepositoryFeature>
+              </ServiceStoreFeatures>
+
+              <!--Target Store Features-->
+              <TargetStoreFeatures>
+                <IndexableItemRepositoryFeature>
+                  <Type>Sitecore.Framework.Publishing.Data.Classic.ClassicIndexableItemRepository, Sitecore.Framework.Publishing.Data.Classic</Type>
+                </IndexableItemRepositoryFeature>
+                <ItemWriteRepositoryFeature>
+                  <Type>Sitecore.Framework.Publishing.Data.Classic.ClassicItemRepository, Sitecore.Framework.Publishing.Data.Classic</Type>
+                </ItemWriteRepositoryFeature>
+                <MediaRepositoryFeature>
+                  <Type>Sitecore.Framework.Publishing.Data.Classic.Repositories.ClassicMediaRepository, Sitecore.Framework.Publishing.Data.Classic</Type>
+                </MediaRepositoryFeature>
+                <TargetIndexFeature>
+                  <Type>Sitecore.Framework.Publishing.ItemIndex.TargetIndexWrapper, Sitecore.Framework.Publishing</Type>
+                </TargetIndexFeature>
+              </TargetStoreFeatures>
+
+              <!--ItemsRelationship Store Features-->
+              <ItemsRelationshipStoreFeatures>
+                <DatabaseItemRelationshipRepositoryFeature>
+                  <Type>Sitecore.Framework.Publishing.Data.Classic.ClassicItemRelationshipRepository, Sitecore.Framework.Publishing.Data.Classic</Type>
+                </DatabaseItemRelationshipRepositoryFeature>
+              </ItemsRelationshipStoreFeatures>
+            </FeatureLists>
+          </Options>
+        </StoreFeaturesLists>
+
+        <!--
+        The ClassicEventTypeMapper allows the service to map event types between the Type defined
+        in the service and the Type expected by Sitecore when interactive with the event queue.
+        -->
+        <ClassicEventTypeMapper>
+          <Options>
+            <Map>
+              <PublishingJobBeginEvent>
+                <From>Sitecore.Framework.Publishing.Eventing.Remote.PublishingJobBeginEvent, Sitecore.Framework.Publishing.Abstractions</From>
+                <To>Sitecore.Publishing.Service.Events.PublishingJobBeginEvent, Sitecore.Publishing.Service</To>
+              </PublishingJobBeginEvent>
+              <PublishingJobEndEvent>
+                <From>Sitecore.Framework.Publishing.Eventing.Remote.PublishingJobEndEvent, Sitecore.Framework.Publishing.Abstractions</From>
+                <To>Sitecore.Publishing.Service.Events.PublishingJobEndEvent, Sitecore.Publishing.Service</To>
+              </PublishingJobEndEvent>
+            </Map>
+          </Options>
+        </ClassicEventTypeMapper>
+      </Services>
+    </Publishing>
+  </Sitecore>
+</Settings>
